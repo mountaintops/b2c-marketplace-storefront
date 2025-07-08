@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: "https",
-        hostname: "i.imgur.com",
+        hostname: "pub-30976424ee7a401eb9fb1148e195f1ed.r2.dev",
       },
       {
         protocol: "https",

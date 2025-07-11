@@ -14,8 +14,7 @@ export interface EnvConfig {
   algoliaId: string
   algoliaSearchKey: string
   talkjsAppId?: string
-  iphubApiKey?: string // Deprecated - kept for backward compatibility
-  proxydetectApiKey?: string
+  iphubApiKey?: string
 }
 
 /**
@@ -34,8 +33,7 @@ export function getEnvConfig(): EnvConfig {
     algoliaId: process.env.NEXT_PUBLIC_ALGOLIA_ID || '',
     algoliaSearchKey: process.env.NEXT_PUBLIC_ALGOLIA_SEARCH_KEY || '',
     talkjsAppId: process.env.NEXT_PUBLIC_TALKJS_APP_ID,
-    iphubApiKey: process.env.IPHUB_API_KEY, // Deprecated - kept for backward compatibility
-    proxydetectApiKey: process.env.PROXYDETECT_API_KEY
+    iphubApiKey: process.env.IPHUB_API_KEY
   }
 
   return config
@@ -81,40 +79,24 @@ export function validateEnvConfig(): { isValid: boolean; errors: string[] } {
 }
 
 /**
- * Checks if ProxyDetect.live is properly configured
- */
-export function isProxyDetectConfigured(): boolean {
-  const config = getEnvConfig()
-  return !!config.proxydetectApiKey && config.proxydetectApiKey !== 'your_proxydetect_api_key_here'
-}
-
-/**
- * Gets ProxyDetect.live API key with validation
- */
-export function getProxyDetectApiKey(): string | null {
-  const config = getEnvConfig()
-
-  if (!config.proxydetectApiKey || config.proxydetectApiKey === 'your_proxydetect_api_key_here') {
-    return null
-  }
-
-  return config.proxydetectApiKey
-}
-
-/**
- * Checks if IPHub is properly configured (deprecated - use isProxyDetectConfigured)
- * @deprecated Use isProxyDetectConfigured instead
+ * Checks if IPHub is properly configured
  */
 export function isIPHubConfigured(): boolean {
-  return isProxyDetectConfigured()
+  const config = getEnvConfig()
+  return !!config.iphubApiKey && config.iphubApiKey !== 'your_iphub_api_key_here'
 }
 
 /**
- * Gets IPHub API key with validation (deprecated - use getProxyDetectApiKey)
- * @deprecated Use getProxyDetectApiKey instead
+ * Gets IPHub API key with validation
  */
 export function getIPHubApiKey(): string | null {
-  return getProxyDetectApiKey()
+  const config = getEnvConfig()
+  
+  if (!config.iphubApiKey || config.iphubApiKey === 'your_iphub_api_key_here') {
+    return null
+  }
+  
+  return config.iphubApiKey
 }
 
 // Validate configuration on module load (development only)

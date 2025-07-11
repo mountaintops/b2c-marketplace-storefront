@@ -53,42 +53,32 @@ export function testEnvironmentConfig() {
 }
 
 /**
- * Test ProxyDetect.live service (requires API key)
+ * Test IPHub service (requires API key)
  */
 export async function testIPHubService() {
-  console.log('\nTesting ProxyDetect.live Service...')
-
-  const proxyDetect = new IPHubService() // Using backward compatibility alias
-
-  if (!proxyDetect.isConfigured()) {
-    console.log('⚠️ ProxyDetect.live not configured - skipping tests')
+  console.log('\nTesting IPHub Service...')
+  
+  const ipHub = new IPHubService()
+  
+  if (!ipHub.isConfigured()) {
+    console.log('⚠️ IPHub not configured - skipping tests')
     return
   }
-
+  
   // Test with known good IP (Google DNS)
   try {
     console.log('Testing with Google DNS (8.8.8.8)...')
-    const isVpn = await proxyDetect.isVpnOrTor('8.8.8.8')
-    console.log(`✅ Google DNS VPN/Proxy check: ${isVpn ? 'VPN/Proxy detected' : 'Clean IP'}`)
-
-    // Get detailed information
-    const ipInfo = await proxyDetect.getIPInfo('8.8.8.8')
-    console.log(`📊 IP Info: ${ipInfo.isp} (${ipInfo.countryCode})`)
-    if (ipInfo.proxy) {
-      console.log(`🔍 Proxy Score: ${ipInfo.proxy.score}/100 - ${ipInfo.proxy.informal}`)
-    }
-    if (ipInfo.vpn) {
-      console.log(`🔍 VPN Score: ${ipInfo.vpn.score}/100 - ${ipInfo.vpn.informal}`)
-    }
+    const isVpn = await ipHub.isVpnOrTor('8.8.8.8')
+    console.log(`✅ Google DNS VPN check: ${isVpn ? 'VPN detected' : 'Clean IP'}`)
   } catch (error) {
-    console.log(`❌ ProxyDetect.live test failed: ${error.message}`)
+    console.log(`❌ IPHub test failed: ${error.message}`)
   }
-
+  
   // Test with localhost (should be skipped)
   try {
     console.log('Testing with localhost (127.0.0.1)...')
-    const isVpn = await proxyDetect.isVpnOrTor('127.0.0.1')
-    console.log(`✅ Localhost VPN/Proxy check: ${isVpn ? 'VPN/Proxy detected' : 'Clean IP (expected)'}`)
+    const isVpn = await ipHub.isVpnOrTor('127.0.0.1')
+    console.log(`✅ Localhost VPN check: ${isVpn ? 'VPN detected' : 'Clean IP (expected)'}`)
   } catch (error) {
     console.log(`❌ Localhost test failed: ${error.message}`)
   }

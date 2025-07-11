@@ -11,6 +11,8 @@ import { Chat } from "@/components/organisms/Chat/Chat"
 import { SellerProps } from "@/types/seller"
 import { WishlistButton } from "../WishlistButton/WishlistButton"
 import { Wishlist } from "@/types/wishlist"
+import { FreeTrialButton } from "@/components/molecules/FreeTrialButton"
+import { isProductEligibleForFreeTrial } from "@/lib/features/free-trial"
 
 const optionsAsKeymap = (
   variantOptions: HttpTypes.StoreProductVariant["options"]
@@ -132,6 +134,15 @@ export const ProductDetailsHeader = ({
       >
         {variantStock && variantHasPrice ? "ADD TO CART" : "OUT OF STOCK"}
       </Button>
+
+      {/* Free Trial Download Button */}
+      {isProductEligibleForFreeTrial(product) && (
+        <FreeTrialButton
+          product={product}
+          className="w-full uppercase mb-4 py-3 flex justify-center"
+        />
+      )}
+
       {/* Seller message */}
 
       {user && product.seller && (

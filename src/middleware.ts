@@ -14,49 +14,74 @@ async function getRegionMap(cacheId: string) {
   const { regionMap, regionMapUpdated } = regionMapCache
 
   if (!BACKEND_URL) {
-    throw new Error(
-      "Middleware.ts: Error fetching regions. Did you set up regions in your Medusa Admin and define a MEDUSA_BACKEND_URL environment variable? Note that the variable is no longer named NEXT_PUBLIC_MEDUSA_BACKEND_URL."
-    )
+    console.warn("MEDUSA_BACKEND_URL not set, using default region fallback")
+    // Create a fallback region map with default region
+    regionMapCache.regionMap.set(DEFAULT_REGION, {
+      id: 'default-region',
+      name: 'Default Region',
+      currency_code: 'usd',
+      countries: [{ iso_2: DEFAULT_REGION }]
+    } as any)
+    return regionMapCache.regionMap
   }
 
   if (
     !regionMap.keys().next().value ||
     regionMapUpdated < Date.now() - 3600 * 1000
   ) {
-    // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
-    const { regions } = await fetch(`${BACKEND_URL}/store/regions`, {
-      headers: {
-        "x-publishable-api-key": PUBLISHABLE_API_KEY!,
-      },
-      next: {
-        revalidate: 3600,
-        tags: [`regions-${cacheId}`],
-      },
-      cache: "force-cache",
-    }).then(async (response) => {
-      const json = await response.json()
+    try {
+      // Fetch regions from Medusa. We can't use the JS client here because middleware is running on Edge and the client needs a Node environment.
+      const { regions } = await fetch(`${BACKEND_URL}/store/regions`, {
+        headers: {
+          "x-publishable-api-key": PUBLISHABLE_API_KEY!,
+          "ngrok-skip-browser-warning": "true",
+        },
+        next: {
+          revalidate: 3600,
+          tags: [`regions-${cacheId}`],
+        },
+        cache: "force-cache",
+      }).then(async (response) => {
+        // Check if response is HTML (ngrok browser warning or error page)
+        const contentType = response.headers.get('content-type')
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error(`Backend returned HTML instead of JSON. This usually means the backend is not accessible or ngrok is showing a browser warning. Status: ${response.status}`)
+        }
 
-      if (!response.ok) {
-        throw new Error(json.message)
+        const json = await response.json()
+
+        if (!response.ok) {
+          throw new Error(json.message || `HTTP ${response.status}: ${response.statusText}`)
+        }
+
+        return json
+      })
+
+      if (!regions?.length) {
+        throw new Error(
+          "No regions found. Please set up regions in your Medusa Admin."
+        )
       }
 
-      return json
-    })
-
-    if (!regions?.length) {
-      throw new Error(
-        "No regions found. Please set up regions in your Medusa Admin."
-      )
-    }
-
-    // Create a map of country codes to regions.
-    regions.forEach((region: HttpTypes.StoreRegion) => {
-      region.countries?.forEach((c) => {
-        regionMapCache.regionMap.set(c.iso_2 ?? "", region)
+      // Create a map of country codes to regions.
+      regions.forEach((region: HttpTypes.StoreRegion) => {
+        region.countries?.forEach((c) => {
+          regionMapCache.regionMap.set(c.iso_2 ?? "", region)
+        })
       })
-    })
 
-    regionMapCache.regionMapUpdated = Date.now()
+      regionMapCache.regionMapUpdated = Date.now()
+    } catch (error) {
+      console.warn("Failed to fetch regions from backend:", error)
+      // Fallback to default region
+      regionMapCache.regionMap.set(DEFAULT_REGION, {
+        id: 'default-region',
+        name: 'Default Region',
+        currency_code: 'usd',
+        countries: [{ iso_2: DEFAULT_REGION }]
+      } as any)
+      regionMapCache.regionMapUpdated = Date.now()
+    }
   }
 
   return regionMapCache.regionMap
@@ -104,17 +129,18 @@ async function getCountryCode(
  * Middleware to handle region selection and onboarding status.
  */
 export async function middleware(request: NextRequest) {
-  let redirectUrl = request.nextUrl.href
+  try {
+    let redirectUrl = request.nextUrl.href
 
-  let response = NextResponse.redirect(redirectUrl, 307)
+    let response = NextResponse.redirect(redirectUrl, 307)
 
-  let cacheIdCookie = request.cookies.get("_medusa_cache_id")
+    let cacheIdCookie = request.cookies.get("_medusa_cache_id")
 
-  let cacheId = cacheIdCookie?.value || crypto.randomUUID()
+    let cacheId = cacheIdCookie?.value || crypto.randomUUID()
 
-  const regionMap = await getRegionMap(cacheId)
+    const regionMap = await getRegionMap(cacheId)
 
-  const countryCode = regionMap && (await getCountryCode(request, regionMap))
+    const countryCode = regionMap && (await getCountryCode(request, regionMap))
 
   const urlHasCountryCode =
     countryCode && request.nextUrl.pathname.split("/")[1].includes(countryCode)
@@ -150,6 +176,16 @@ export async function middleware(request: NextRequest) {
   }
 
   return response
+  } catch (error) {
+    // Log the error for debugging
+    if (process.env.NODE_ENV === "development") {
+      console.error("Middleware error:", error)
+    }
+
+    // In case of error, continue without region-based redirects
+    // This prevents the entire application from crashing
+    return NextResponse.next()
+  }
 }
 
 export const config = {

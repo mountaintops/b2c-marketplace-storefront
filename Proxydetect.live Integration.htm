@@ -1,0 +1,261 @@
+<!-- preset form values if we receive a userdata object //--><!DOCTYPE html><html><head><title>Proxydetect.live Integration</title><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer"><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@1.0.2/css/bulma.min.css"><link rel="stylesheet" href="/app/css/style.css"><link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:wght@400;500;700&amp;display=swap"><link rel="manifest" href="/app/img/favicon/site.webmanifest"><script async src="https://www.googletagmanager.com/gtag/js?id=G-4GE01ZMH3F"></script><script src="/app/js/analytics.js"></script><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/styles/github-dark.min.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.6.0/highlight.min.js"></script></head><body><!-- store the userId on the client side in a hidden input field //--><input type="hidden" value="687171e3ea9cf0653f8e6686" id="userId"><nav class="navbar py-4" role="navigation" aria-label="main navigation"><div class="container is-fluid"><div class="navbar-brand"><a class="navbar-item branding" href="/app/home"><img class="branding-logo" src="https://proxydetect.live/img/logo-v4.png"></a><a class="navbar-burger" role="button" aria-label="menu" aria-expanded="false"><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span></a></div><div class="navbar-menu" id="navbarMenu"><div class="navbar-start"><a class="navbar-item" style="cursor: pointer !important;" href="/app/home">Home</a><a class="navbar-item" style="cursor: pointer !important;" href="/app/integration">Integration</a></div><div class="navbar-end"><a class="navbar-item" href="/app/logout" style="cursor: pointer !important;" id="btn-logout"><span class="fa fa-right-from-bracket mr-2"></span>Sign Out</a></div></div></div></nav><section class="section"><div class="container"><h1 class="title is-3">Proxydetect.live Integration</h1><div class="box mb-5"><h2 class="title is-4">Try It Now</h2><p class="mb-3">Click the button below to test the Proxy/VPN detection (it will run on this page):</p><button class="button is-success mb-4" id="runDetectionDemo">Run Detection Demo</button><div class="is-hidden mb-4" id="testResultSummary"><div class="columns"><div class="column"><div class="notification is-light" id="proxyResult"><h3 class="title is-5">Proxy Detection</h3><p id="proxyScore"></p><p id="proxyInfo"></p></div></div><div class="column"><div class="notification is-light" id="vpnResult"><h3 class="title is-5">VPN Detection</h3><p id="vpnScore"></p><p id="vpnInfo"></p></div></div></div></div><div class="is-hidden" id="detectionResult"><div class="level mb-2"><div class="level-left"><p class="has-text-weight-bold level-item">Detection Results:</p></div><div class="level-right"><button class="button is-small level-item" id="toggleResultsBtn">Show/Hide Details</button></div></div><div class="is-hidden" id="detectionResultContent"><pre class="code-style"><code class="hljs json language-json" id="detectionOutput"></code></pre></div></div><div class="is-hidden mt-4" id="configResult"><div class="level mb-2"><div class="level-left"><p class="has-text-weight-bold level-item">Current Configuration:</p></div><div class="level-right"><button class="button is-small level-item" id="toggleConfigBtn">Show/Hide Details</button></div></div><div class="is-hidden" id="configResultContent"><pre class="code-style"><code class="hljs json language-json" id="configOutput"></code></pre></div></div><script>// Toggle buttons functionality
+document.getElementById('toggleResultsBtn').addEventListener('click', function() {
+  const content = document.getElementById('detectionResultContent');
+  content.classList.toggle('is-hidden');
+});
+
+document.getElementById('toggleConfigBtn').addEventListener('click', function() {
+  const content = document.getElementById('configResultContent');
+  content.classList.toggle('is-hidden');
+});
+
+document.getElementById('runDetectionDemo').addEventListener('click', function() {
+  // First, specify your API key.
+  const pdKey = '1f5219be3b2adb7e49b6';
+  // Optionally, you can specify any custom value. This value could for example identify 
+  // the session of your user. The same value is provided in the API callback.
+  // With this value, you can make any kind of action depending on whether a Proxy or VPN was detected.
+  const pdVal = '12345';
+  // Now the JavaScript integration URL is created and the JS is loaded dynamically
+  const fullUrl = 'https://engine.proxydetect.live/pd-lib.js?pdKey=' + pdKey + '&pdVal=' + pdVal;
+  let pdsScript = document.createElement("script");
+  pdsScript.setAttribute("src", fullUrl);
+  document.head.appendChild(pdsScript);
+  
+  // Show loading state
+  const resultElement = document.getElementById('detectionResult');
+  resultElement.classList.remove('is-hidden');
+  document.getElementById('detectionOutput').textContent = 'Running detection tests...';
+  
+  // Show the test result summary with loading state
+  const testResultSummary = document.getElementById('testResultSummary');
+  testResultSummary.classList.remove('is-hidden');
+  
+  // Set initial loading state for proxy and VPN results
+  const proxyResult = document.getElementById('proxyResult');
+  const vpnResult = document.getElementById('vpnResult');
+  
+  // Reset classes and set to loading state
+  proxyResult.className = 'notification is-light';
+  vpnResult.className = 'notification is-light';
+  
+  document.getElementById('proxyScore').innerHTML = '';
+  document.getElementById('proxyInfo').innerHTML = 'Running proxy detection tests...';
+  document.getElementById('vpnScore').innerHTML = '';
+  document.getElementById('vpnInfo').innerHTML = 'Running VPN detection tests...';
+  
+  // Disable the button to prevent multiple runs
+  const button = this;
+  button.disabled = true;
+  button.textContent = 'Detection Running...';
+  
+  // Fetch and display user configuration
+  const configElement = document.getElementById('configResult');
+  configElement.classList.remove('is-hidden');
+  
+  fetch(`https://engine.proxydetect.live/getUserConfig?key=${pdKey}`)
+    .then(response => response.json())
+    .then(data => {
+      const configOutputElement = document.getElementById('configOutput');
+      configOutputElement.textContent = JSON.stringify(data, null, 2);
+      // Apply syntax highlighting
+      hljs.highlightElement(configOutputElement);
+    })
+    .catch(error => {
+      document.getElementById('configOutput').textContent = 'Error fetching configuration: ' + error;
+    });
+  
+  // Function to display test results
+  const displayTestResults = (data) => {
+    // Update Proxy results
+    const proxyResult = document.getElementById('proxyResult');
+    const proxyScore = document.getElementById('proxyScore');
+    const proxyInfo = document.getElementById('proxyInfo');
+    
+    if (data.proxy && data.proxy.isProxy) {
+      proxyResult.classList.remove('is-light');
+      proxyResult.classList.add('is-danger');
+      proxyResult.classList.remove('is-success');
+      proxyScore.innerHTML = `<strong>Score:</strong> ${data.proxy.score}/100`;
+      proxyInfo.innerHTML = `<strong>${data.proxy.informal}</strong><br>Positive Tests: ${data.proxy.numPositiveTests}/${data.proxy.numTests}`;
+    } else {
+      proxyResult.classList.remove('is-light');
+      proxyResult.classList.add('is-success');
+      proxyResult.classList.remove('is-danger');
+      proxyScore.innerHTML = data.proxy ? `<strong>Score:</strong> ${data.proxy.score}/100` : '';
+      proxyInfo.innerHTML = data.proxy ? `<strong>${data.proxy.informal}</strong><br>Positive Tests: ${data.proxy.numPositiveTests}/${data.proxy.numTests}` : 'No proxy detected';
+    }
+    
+    // Update VPN results
+    const vpnResult = document.getElementById('vpnResult');
+    const vpnScore = document.getElementById('vpnScore');
+    const vpnInfo = document.getElementById('vpnInfo');
+    
+    if (data.vpn && data.vpn.isVpn) {
+      vpnResult.classList.remove('is-light');
+      vpnResult.classList.add('is-danger');
+      vpnResult.classList.remove('is-success');
+      vpnScore.innerHTML = `<strong>Score:</strong> ${data.vpn.score}/100`;
+      vpnInfo.innerHTML = `<strong>${data.vpn.informal}</strong><br>Positive Tests: ${data.vpn.numPositiveTests}/${data.vpn.numTests}`;
+    } else {
+      vpnResult.classList.remove('is-light');
+      vpnResult.classList.add('is-success');
+      vpnResult.classList.remove('is-danger');
+      vpnScore.innerHTML = data.vpn ? `<strong>Score:</strong> ${data.vpn.score}/100` : '';
+      vpnInfo.innerHTML = data.vpn ? `<strong>${data.vpn.informal}</strong><br>Positive Tests: ${data.vpn.numPositiveTests}/${data.vpn.numTests}` : 'No VPN detected';
+    }
+  };
+  
+  // Function to fetch results using the UUID
+  const fetchResults = (uuid) => {
+    fetch(`https://engine.proxydetect.live/i?&uuid=${uuid}`)
+      .then(response => response.json())
+      .then(data => {
+        const outputElement = document.getElementById('detectionOutput');
+        outputElement.textContent = JSON.stringify(data, null, 2);
+        // Apply syntax highlighting
+        hljs.highlightElement(outputElement);
+        displayTestResults(data);
+      })
+      .catch(error => {
+        document.getElementById('detectionOutput').textContent = 'Error fetching results: ' + error;
+        // Update the status indicators to show error state
+        document.getElementById('proxyInfo').innerHTML = 'Error fetching results';
+        document.getElementById('vpnInfo').innerHTML = 'Error fetching results';
+      });
+  };
+  
+  // Check for results after 2 seconds
+  setTimeout(function() {
+    if (window.pds && window.pds.clientData && window.pds.clientData.uuid) {
+      const uuid = window.pds.clientData.uuid;
+      fetchResults(uuid);
+      
+      // Check again after 3.5 seconds for more complete results
+      setTimeout(function() {
+        fetchResults(uuid);
+        
+        // Reset the button after the second poll
+        button.disabled = false;
+        button.textContent = 'Run Detection Demo';
+      }, 3500); // 5.5 seconds total (2 + 3.5)
+    } else {
+      document.getElementById('detectionOutput').textContent = 'UUID not found. Results will be sent to your configured callback URL.';
+      
+      // Update the status indicators to show error state
+      document.getElementById('proxyInfo').innerHTML = 'UUID not found. Results will be sent to your configured callback URL.';
+      document.getElementById('vpnInfo').innerHTML = 'UUID not found. Results will be sent to your configured callback URL.';
+      
+      // Reset the button if UUID wasn't found
+      button.disabled = false;
+      button.textContent = 'Run Detection Demo';
+    }
+  }, 2000);
+});
+</script></div><div class="box mb-5"><h2 class="title is-4">Dynamic JavaScript Integration</h2><p class="mb-3">This example shows how to dynamically load the Proxy/VPN detection library:</p><pre class="code-style"><code class="hljs html hljs" data-highlighted="yes">&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;Proxy/VPN Detection Tests - Integration Example&lt;/title&gt;
+ 
+  &lt;script&gt;
+    // First, specify your API key.
+    const pdKey = '1f5219be3b2adb7e49b6';
+    // Optionally, you can specify any custom value. This value could for example identify 
+    // the session of your user. The same value is provided in the API callback.
+    // With this value, you can make any kind of action depending on whether a Proxy or VPN was detected.
+    const pdVal = '12345';
+    // Now the JavaScript integration URL is created and the JS is loaded dynamically
+    const fullUrl = 'https://engine.proxydetect.live/pd-lib.js?pdKey=' + pdKey + '&pdVal=' + pdVal;
+    let pdsScript = document.createElement("script");
+    pdsScript.setAttribute("src", fullUrl);
+    document.head.appendChild(pdsScript);
+  &lt;/script&gt;
+&lt;/head&gt;
+&lt;/html&gt;</code></pre></div><div class="box mb-5"><h2 class="title is-4">Simple Integration</h2><p class="mb-3">A more straightforward way to integrate the Proxy/VPN detection solution:</p><pre class="code-style"><code class="hljs html hljs" data-highlighted="yes">&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;Proxy/VPN Detection Tests - Integration Example&lt;/title&gt;
+  &lt;script src="https://engine.proxydetect.live/pd-lib.js?pdKey=1f5219be3b2adb7e49b6&pdVal=12345"&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;/html&gt;</code></pre></div><div class="box"><h2 class="title is-4">Receiving Callbacks</h2><p class="mb-3">After successfully placing the JavaScript and configuring your callback, you are ready to receive callbacks. There are two different kinds of callbacks:</p><ul class="mb-4"><li class="mb-2"><strong>Passive Callbacks: </strong>Some of the detection tests do not require data obtained with JavaScript. Therefore, passive tests can be sent as soon as a client has made the first request to the server (After the JavaScript was requested). Passive callbacks can also include active test results.</li><li><strong>Active Callbacks: </strong>Active callbacks need to wait for the arrival of information obtained with JavaScript. Active Callbacks also include passive test results.</li></ul><h4 class="title is-5">Callback Format</h4><p class="mb-3">Each callback payload (regardless whether it is active or passive) has the following basic callback structure.</p><pre class="code-style" id="callbackFormat"><code class="hljs JavaScript hljs" id="callback-example">{
+  // can be "active" or "passive"
+  "callbackType": "passive",
+  // the client IP address
+  "ip": "35.129.112.58",
+  // when the JS was served to the client
+  "js_served_at": 1687350013053,
+  // when this callback was sent
+  "callback_sent": 1687350013370,
+  // the uuid
+  "uuid": "59d68ddfa135f3f0",
+  // the API key
+  "pdKey": "bee2cf3b70e32e981b7b",
+  // any used defined value that is played back to you
+  "pdVal": "12345",
+  // the proxy score
+  "proxy": {
+    // whether the connection was proxied
+    "isProxy": false,
+    // how many tests were positive
+    "numPositiveTests": 0,
+    // how many tests were evaluated in total
+    "numTests": 4,
+    // the proxy detection score
+    "score": 0,
+    // the informal message for the proxy detection score
+    // you can display this score in your app
+    "informal": "0/100 - Very likely not a Proxy"
+  },
+  // the vpn score
+  "vpn": {
+    // whether the connection was using a VPN
+    "isVpn": false,
+    // how many tests were positive
+    "numPositiveTests": 0,
+    // how many tests were evaluated in total
+    "numTests": 2,
+    // the VPN detection score
+    "score": 0,
+    // the informal message for the VPN detection score
+    // you can display this score in your app
+    "informal": "0/55 - Very likely not a VPN"
+  },
+  // the client threat score
+  "client": {
+    "isClientThreat": false,
+    "numPositiveTests": 0,
+    "numTests": 5,
+    "informal": "no client threat"
+  },
+  "tests": {
+    // ...
+  }
+}</code></pre><h2 class="title is-4">Ban or Rate Limit Proxy/VPN Usage</h2><p class="mb-3">It is up to you to decide what action to take when a user was detected using a Proxy or VPN. For example, most web services don't want to serve users that are using Anonymizing Proxies. In order to ban a user that is using a proxy, your custom action could look like the example below. Node.js and Express is used for the example below:</p><pre class="code-style"><code class="hljs javascript hljs" id="callback-example">const express = require('express');
+const bodyParser = require('body-parser');
+ 
+const app = express();
+ 
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+ 
+app.post('/callback', (req, res) => {
+  let payload = req.body;
+ 
+  if (payload.pdKey && payload.pdVal) {
+    // how this is implemented depends on your backend logic
+    const user = getUserByPdVal(payload.pdVal);
+ 
+    if (user) {
+      if (payload.proxy.isProxy) {
+        user.displayCaptcha();
+      }
+    }
+    // In this example, we don't care if users are using VPN's
+  }
+ 
+  res.header('Content-Type', 'application/json');
+  return res.send({ 'msg': 'ok' });
+});
+ 
+ 
+app.listen(3000, () => {
+  console.log('Example app listening on port 3000!');
+});</code></pre></div></div></section><script src="/app/js/app.js"></script></body></html>

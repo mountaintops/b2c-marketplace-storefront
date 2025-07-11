@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    console.log(`Authenticated customer: ${customer.id}`)
+    console.log(`Authenticated customer:`, customer)
 
     // 4. Fetch customer orders from Medusa backend
     const authHeaders = createAuthHeaders(request)
@@ -56,14 +56,15 @@ export async function GET(request: NextRequest) {
       }
     )
 
-    if (!ordersResponse.orders) {
+    const ordersData = ordersResponse as any
+    if (!ordersData.orders) {
       return NextResponse.json([])
     }
 
     // 5. Extract unique product handles from order items
     const productHandles = new Set<string>()
 
-    ordersResponse.orders.forEach((order: any) => {
+    ordersData.orders.forEach((order: any) => {
       // Skip canceled or draft orders
       if (order.status === 'canceled' || order.status === 'draft') {
         return
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
     // 6. Return array of unique product handles
     const result = Array.from(productHandles).sort()
 
-    console.log(`Found ${result.length} owned products for customer ${customer.id}`)
+    console.log(`Found ${result.length} owned products for customer`)
 
     return NextResponse.json(result)
 
@@ -88,14 +89,15 @@ export async function GET(request: NextRequest) {
     console.error('Error in owned-products API:', error)
 
     // Return appropriate error based on the error type
-    if (error.message?.includes('Authentication')) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    if (errorMessage?.includes('Authentication')) {
       return NextResponse.json(
         { error: 'Authentication failed' },
         { status: 401 }
       )
     }
 
-    if (error.message?.includes('VPN') || error.message?.includes('Tor')) {
+    if (errorMessage?.includes('VPN') || errorMessage?.includes('Tor')) {
       return NextResponse.json(
         { error: 'Access denied' },
         { status: 403 }
